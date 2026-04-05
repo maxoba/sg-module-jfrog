@@ -18,14 +18,14 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    outputs:
-      new_version: ${{ steps.get_version.outputs.new_version }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: install modules
+        run: npm install semantic-release @semantic-release/git @semantic-release/github -D 
+      - name: Semantic release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npx semantic-release
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,10 +33,7 @@ jobs:
           node-version: 20
       - name: checkouts
         uses: actions/checkout@v4
-      - name: install modules
-        run: npm install semantic-release @semantic-release/git @semantic-release/github -D 
-      - name: Semantic release
-        run: npx semantic-release
+      
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}         
 
