@@ -89,7 +89,7 @@ jobs:
         run: |
           SERVER_ID="trialxphjx0"
           jf c add $SERVER_ID --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
-          jf tfc --server-id-deploy $SERVER_ID --repo-deploy 
+          jf tfc --server-id-deploy $SERVER_ID --repo-deploy= tf
           VERSION="${{ needs.release.outputs.new_version }}"
           echo "Publishing version: $VERSION"
           jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag="$VERSION"
