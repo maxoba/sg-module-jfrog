@@ -1,0 +1,95 @@
+on:
+  push:
+    branches:
+      - main
+
+env:
+  JFROG_NAMESPACE: "cloudops"
+  JF_URL: ${{ secrets.JF_URL }}
+  JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
+  JFROG_CLI_AVOID_NEW_VERSION_WARNING: "TRUE"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      new_version: ${{ steps.get_version.outputs.new_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run semantic-release
+        run: ./node_modules/.bin/semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get released version
+        id: get_version
+        run: |
+          RAW=$(node -p "require('./package.json').version")
+          CLEAN="${RAW#v}"
+          echo "new_version=$CLEAN" >> $GITHUB_OUTPUT
+
+
+  upload:
+    needs: release
+    if: needs.release.result == 'success' && needs.release.outputs.new_version != ''
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./sg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform format check
+        run: terraform fmt --recursive --check
+
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        continue-on-error: true
+        with:
+          skip_check: CKV2_AWS_12,CKV2_AWS_11,CKV2_AWS_19
+          output_format: cli,sarif
+          output_file_path: results.sarif
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v3
+
+      - name: Configure and publish to Artifactory
+        run: |
+          SERVER_ID="trialxphjx0"
+          jf c add $SERVER_ID --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
+          jf tfc --server-id-deploy $SERVER_ID --repo-deploy terraform-local-modules
+          VERSION="v${{ needs.release.outputs.new_version }}"
+          echo "Publishing version: $VERSION"
+          jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag="$VERSION"
+
