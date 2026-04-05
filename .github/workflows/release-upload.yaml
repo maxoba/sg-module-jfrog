@@ -82,7 +82,7 @@ jobs:
           output_file_path: results.sarif
 
       - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v3
+        uses: jfrog/setup-jfrog-cli@v4
 
       - name: Configure and publish to Artifactory
         run: |
