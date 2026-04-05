@@ -1,3 +1,4 @@
+name: release-and-upload
 on:
   push:
     branches:
@@ -18,24 +19,28 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    outputs:
+      new_version: ${{ steps.get_version.outputs.new_version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: install modules
-        run: npm install semantic-release @semantic-release/git @semantic-release/github -D 
-      - name: Semantic release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx semantic-release
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: checkouts
-        uses: actions/checkout@v4
-      
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Semantic release
+        run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}         
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: "dummy"
 
       - name: Get released version
         id: get_version
@@ -43,7 +48,6 @@ jobs:
           RAW=$(node -p "require('./package.json').version")
           CLEAN="${RAW#v}"
           echo "new_version=$CLEAN" >> $GITHUB_OUTPUT
-
 
   upload:
     needs: release
@@ -85,8 +89,7 @@ jobs:
         run: |
           SERVER_ID="trialxphjx0"
           jf c add $SERVER_ID --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
-          jf tfc --server-id-deploy $SERVER_ID --repo-deploy terraform-local-modules
-          VERSION="v${{ needs.release.outputs.new_version }}"
+          jf tfc --server-id-deploy $SERVER_ID --repo-deploy tf
+          VERSION="${{ needs.release.outputs.new_version }}"
           echo "Publishing version: $VERSION"
           jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag="$VERSION"
-
