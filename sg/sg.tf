@@ -52,6 +52,6 @@ resource "aws_security_group" "allow_tls" {
 }
 
 provider "aws" {
-    region = var.region
-  
+  region = var.region
+
 }
