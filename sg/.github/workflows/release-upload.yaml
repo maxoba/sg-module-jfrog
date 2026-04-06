@@ -1,4 +1,4 @@
-name: upload
+name: release-and-upload
 on:
   push:
     branches:
@@ -8,6 +8,7 @@ env:
   JFROG_NAMESPACE: "cloudops"
   JF_URL: ${{ secrets.JF_URL }}
   JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
+  JFROG_CLI_AVOID_NEW_VERSION_WARNING: "TRUE"
 
 jobs:
   release:
@@ -24,17 +25,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: modules
-        run: npm install semantic-release @semantic-release/git @semantic-release/github -D
-      - name: release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Semantic release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: "dummy"
+
+      - name: Get released version
+        id: get_version
+        run: |
+          RAW=$(node -p "require('./package.json').version")
+          CLEAN="${RAW#v}"
+          echo "new_version=$CLEAN" >> $GITHUB_OUTPUT
 
   upload:
     needs: release
-    if: success()
+    if: needs.release.result == 'success' && needs.release.outputs.new_version != ''
 
     runs-on: ubuntu-latest
 
