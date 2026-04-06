@@ -66,7 +66,7 @@ jobs:
           export SERVER_ID="trialxphjx0"
           jf c add $SERVER_ID --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
           jf tfc --server-id-deploy $SERVER_ID --repo-deploy terraform-local-modules
-          jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag=$(git describe --tags 'git rev-list --tags --max-count=1')
+          jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag=$(git describe --tags $(git rev-list --tags --max-count=1))
     
 
       
