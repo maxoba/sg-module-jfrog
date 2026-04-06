@@ -43,34 +43,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-tags: true
           fetch-depth: 0
-          ref: main
 
-      - name: Setup Terraform
+      - name: install terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
+      - run: terraform fmt --recursive 
 
-      - name: Terraform format check
-        run: terraform fmt --recursive --check
-
-      - name: Checkov scan
+      - name: Checkov GitHub Action
         uses: bridgecrewio/checkov-action@v12
         continue-on-error: true
         with:
           skip_check: CKV2_AWS_12,CKV2_AWS_11,CKV2_AWS_19
           output_format: cli,sarif
-          output_file_path: results.sarif
+          output_file_path: console,results.sarif
 
-      - name: Setup JFrog CLI
+      - name: Setup
         uses: jfrog/setup-jfrog-cli@v4
 
-      - name: Configure and publish to Artifactory
+      - name: Config
         run: |
-          jf tfc --server-id-deploy=setup-jfrog-cli-server --repo-deploy=terraform-local-modules
-          VERSION="${{ needs.release.outputs.new_version }}"
-          echo "Publishing version: $VERSION"
-          jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag="$VERSION"
+          export SERVER_ID="trialxphjx0"
+          jf c add $SERVER_ID --url=$JF_URL --access-token=$JF_ACCESS_TOKEN --interactive=false
+          jf tfc --server-id-deploy $SERVER_ID --repo-deploy terraform-local-modules
+          jf tf p --namespace=${JFROG_NAMESPACE} --provider=local --tag=$(git describe --tags 'git rev-list --tags --max-count=1')
     
 
       
